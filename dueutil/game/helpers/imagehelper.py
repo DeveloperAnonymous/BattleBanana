@@ -17,6 +17,11 @@ from ..configs import dueserverconfig
 from . import imagecache
 from .. import emojis as e
 
+try:
+    from .speedup import quest_colorize_helper
+except (ImportError, ModuleNotFoundError):
+    def quest_colorize_helper(*args):
+        raise ImportError("use linux bruh")
 """
 Worst code in the bot.
 Images very ugly throwaway code.
@@ -87,6 +92,19 @@ def colourize(image, colours, intensity, **extras):
             pixel_data[i] = tuple(
                 int(pi * (1 - intensity) + ci * intensity) for pi, ci in zip(pixel[:3], colour)) + pixel[3:]
         pixel_count += 1
+    image.putdata(pixel_data)
+    return image
+
+
+def quest_colorize(image, colours, intensity, **extras):
+    image = image.copy()
+    pixel_data = list(image.getdata())
+    cycle_colours = tuple(extras.get('cycle_colours', image.size[0] // len(colours)))
+    colour_index = -1
+    colour = colours[colour_index]
+    pixel_count = 0
+    for i, pixel in enumerate(pixel_data):
+        pixel_data[i], pixel_count, colour_index, colour = quest_colorize_helper(i, pixel, pixel_count, colour_index, colour, cycle_colours, colours)
     image.putdata(pixel_data)
     return image
 
@@ -316,7 +334,10 @@ async def quests_screen(ctx, player, page):
         image.paste(quest_row, (14, 40 + 44 * count))
         quest = player.quests[quest_index]
         warning_colours = [traffic_light(danger_level) for danger_level in quest.get_threat_level(player)]
-        warning_icons = colourize(mini_icons, warning_colours, 0.5, cycle_colours=[10, 10, 11, 10, 11])
+        try:
+            warning_icons = quest_colorize(mini_icons, warning_colours, 0.5, cycle_colours=[10, 10, 11, 10, 11])
+        except:
+            warning_icons = colorize(mini_icons, warning_colours, 0.5, cycle_colours=[10, 10, 11, 10, 11])
         paste_alpha(image, warning_icons, (14 + row_size[0] - 53, row_size[1] * 2 - 12 + 44 * count))
         level = "Level " + str(math.trunc(quest.level))
         level_width = draw.textsize(level, font=font_small)[0] + 5
